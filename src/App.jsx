@@ -49,7 +49,7 @@ export default function App() {
   const [pdfaHandle, setPdfaHandle] = useState(null);
   const [sourceInfo, setSourceInfo] = useState(null);
   const [mode, setMode] = useState("idle");
-  const [tool, setTool] = useState("select");
+  const [tool, setTool] = useState("hand");
   const [selection, setSelection] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [saveStatus, setSaveStatus] = useState("Saved");

@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import AnnotationLayer from "./AnnotationLayer.jsx";
 
+const CANVAS_MARGIN_LEFT = 2.2;
+const CANVAS_MARGIN_RIGHT = 2.2;
+const CANVAS_MARGIN_TOP = 0.8;
+const CANVAS_MARGIN_BOTTOM = 1.4;
+
 export default function PdfPage({
   pdfDoc,
   pageNumber,
@@ -17,6 +22,16 @@ export default function PdfPage({
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);
   const [size, setSize] = useState({ width: 612, height: 792 });
+  const workspaceBounds = {
+    minX: -CANVAS_MARGIN_LEFT,
+    minY: -CANVAS_MARGIN_TOP,
+    width: CANVAS_MARGIN_LEFT + 1 + CANVAS_MARGIN_RIGHT,
+    height: CANVAS_MARGIN_TOP + 1 + CANVAS_MARGIN_BOTTOM
+  };
+  const workspaceSize = {
+    width: size.width * workspaceBounds.width,
+    height: size.height * workspaceBounds.height
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +74,12 @@ export default function PdfPage({
     <div
       className="pdf-page"
       data-page-number={pageNumber}
-      style={{ width: `${size.width}px`, height: `${size.height}px` }}
+      style={{
+        width: `${workspaceSize.width}px`,
+        height: `${workspaceSize.height}px`,
+        "--pdf-left": `${CANVAS_MARGIN_LEFT * size.width}px`,
+        "--pdf-top": `${CANVAS_MARGIN_TOP * size.height}px`
+      }}
     >
       <canvas ref={canvasRef} />
       <AnnotationLayer
@@ -67,6 +87,7 @@ export default function PdfPage({
         tool={tool}
         annotations={annotations}
         commentThreads={commentThreads}
+        workspaceBounds={workspaceBounds}
         selection={selection}
         onInkComplete={onInkComplete}
         onHighlightComplete={onHighlightComplete}

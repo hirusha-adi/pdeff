@@ -7,6 +7,7 @@ export function createEmptyPdfa(source) {
     documentState: {
       lastOpenedPage: 1,
       zoom: 1,
+      scrollLeft: 0,
       scrollTop: 0
     },
     annotations: [],

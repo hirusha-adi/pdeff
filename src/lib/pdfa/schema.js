@@ -1,15 +1,15 @@
 import { z } from "zod";
 
 const pointSchema = z.object({
-  x: z.number().min(0).max(1),
-  y: z.number().min(0).max(1)
+  x: z.number().finite(),
+  y: z.number().finite()
 });
 
 const rectSchema = z.object({
-  x: z.number().min(0).max(1),
-  y: z.number().min(0).max(1),
-  width: z.number().min(0).max(1),
-  height: z.number().min(0).max(1)
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().finite().nonnegative(),
+  height: z.number().finite().nonnegative()
 });
 
 const sourceSchema = z.object({
@@ -22,6 +22,7 @@ const sourceSchema = z.object({
 const documentStateSchema = z.object({
   lastOpenedPage: z.number().int().positive().default(1),
   zoom: z.number().positive().default(1),
+  scrollLeft: z.number().nonnegative().default(0),
   scrollTop: z.number().nonnegative().default(0)
 });
 

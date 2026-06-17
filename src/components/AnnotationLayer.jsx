@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { clientPointToNormalized, isUsableRect, normalizeRect } from "../lib/pdf/coordinates.js";
+import { clientPointToPageUnits, isUsableRect, normalizeRect } from "../lib/pdf/coordinates.js";
 
 function pointsToPath(points) {
   if (!points.length) return "";
@@ -15,6 +15,7 @@ export default function AnnotationLayer({
   tool,
   annotations,
   commentThreads,
+  workspaceBounds,
   selection,
   onInkComplete,
   onHighlightComplete,
@@ -31,12 +32,12 @@ export default function AnnotationLayer({
   }, [tool]);
 
   function normalizedPoint(event) {
-    return clientPointToNormalized(event, svgRef.current);
+    return clientPointToPageUnits(event, svgRef.current, workspaceBounds);
   }
 
   function handlePointerDown(event) {
     if (!svgRef.current) return;
-    if (tool === "select") return;
+    if (tool !== "pen" && tool !== "highlight" && tool !== "comment") return;
 
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -72,19 +73,19 @@ export default function AnnotationLayer({
 
     if (draftHighlight?.pointerId === event.pointerId) {
       event.preventDefault();
-      const rect = normalizeRect(draftHighlight.start, draftHighlight.end);
+      const rect = normalizeRect(draftHighlight.start, draftHighlight.end, workspaceBounds);
       if (isUsableRect(rect)) onHighlightComplete(pageNumber, rect);
       setDraftHighlight(null);
     }
   }
 
-  const liveHighlight = draftHighlight ? normalizeRect(draftHighlight.start, draftHighlight.end) : null;
+  const liveHighlight = draftHighlight ? normalizeRect(draftHighlight.start, draftHighlight.end, workspaceBounds) : null;
 
   return (
     <svg
       ref={svgRef}
       className={className}
-      viewBox="0 0 1 1"
+      viewBox={`${workspaceBounds.minX} ${workspaceBounds.minY} ${workspaceBounds.width} ${workspaceBounds.height}`}
       preserveAspectRatio="none"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

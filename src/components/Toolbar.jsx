@@ -4,6 +4,7 @@ import {
   FileJson,
   FileText,
   FolderOpen,
+  Hand,
   Highlighter,
   MessageSquarePlus,
   Minus,
@@ -14,7 +15,8 @@ import {
 } from "lucide-react";
 
 const tools = [
-  { id: "select", label: "Pan/Select", icon: MousePointer2 },
+  { id: "select", label: "Select", icon: MousePointer2 },
+  { id: "hand", label: "Hand/Pan", icon: Hand },
   { id: "pen", label: "Pen", icon: PenLine },
   { id: "highlight", label: "Highlight", icon: Highlighter },
   { id: "comment", label: "Comment", icon: MessageSquarePlus }
