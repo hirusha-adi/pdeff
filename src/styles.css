@@ -57,7 +57,7 @@ button:disabled {
 
 .app-shell {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: 56px 52px minmax(0, 1fr);
   height: 100vh;
   min-height: 0;
   overflow: hidden;
@@ -68,13 +68,17 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 56px;
   padding: 10px 12px;
   border-bottom: 1px solid #d9dee5;
   background: #fbfcfd;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .toolbar-group {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -149,13 +153,15 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 48px;
-  max-height: 126px;
-  overflow: auto;
+  height: 52px;
+  min-height: 52px;
+  max-height: 52px;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 8px 12px;
   border-bottom: 1px solid #d9dee5;
   background: #ffffff;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .file-select {
@@ -170,7 +176,7 @@ button:disabled {
 
 .file-meta {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
   min-width: 0;
@@ -368,16 +374,19 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 32px;
   padding: 8px 12px;
-  border-top: 1px solid #f0d0a0;
+  border: 1px solid #f0d0a0;
+  border-radius: 6px;
   background: #fff8eb;
   color: #6f4a13;
   font-size: 13px;
 }
 
 .error-row {
-  border-top-color: #efb5b5;
+  border-color: #efb5b5;
   background: #fff0f0;
   color: #8a2323;
 }
@@ -386,9 +395,12 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 34px;
   padding: 10px 12px;
-  border-top: 1px solid #c8d0d9;
+  border: 1px solid #c8d0d9;
+  border-radius: 6px;
   background: #eef7f5;
   color: #134e4a;
   flex-wrap: wrap;

@@ -39,6 +39,7 @@ export default function App() {
   const pdfaRef = useRef(null);
   const pdfaHandleRef = useRef(null);
   const sourceInfoRef = useRef(null);
+  const zoomRef = useRef(1);
 
   const [folderHandle, setFolderHandle] = useState(null);
   const [pdfEntries, setPdfEntries] = useState([]);
@@ -72,6 +73,10 @@ export default function App() {
   }, [sourceInfo]);
 
   useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  useEffect(() => {
     if (!pdfa || !sourceInfo) return;
     if (!autosaveReadyRef.current) return;
 
@@ -101,6 +106,41 @@ export default function App() {
     return () => {
       window.removeEventListener("pagehide", flushPending);
       window.removeEventListener("beforeunload", flushPending);
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleWheel(event) {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      if (!pdfaRef.current) return;
+      changeZoom(event.deltaY < 0 ? 1 : -1, 0.5);
+    }
+
+    function handleKeyDown(event) {
+      if (!event.ctrlKey && !event.metaKey) return;
+      const key = event.key;
+      const zoomIn = key === "+" || key === "=";
+      const zoomOut = key === "-" || key === "_";
+      const resetZoom = key === "0";
+
+      if (!zoomIn && !zoomOut && !resetZoom) return;
+      event.preventDefault();
+      if (!pdfaRef.current) return;
+
+      if (resetZoom) {
+        setCanvasZoom(1);
+      } else {
+        changeZoom(zoomIn ? 1 : -1);
+      }
+    }
+
+    document.addEventListener("wheel", handleWheel, { passive: false, capture: true });
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+
+    return () => {
+      document.removeEventListener("wheel", handleWheel, { capture: true });
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, []);
 
@@ -408,19 +448,35 @@ export default function App() {
       documentState: {
         ...current.documentState,
         ...partialState,
-        zoom
+        zoom: zoomRef.current
       }
     }));
   }
 
-  function changeZoom(direction) {
-    const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number((zoom + direction * ZOOM_STEP).toFixed(2))));
-    setZoom(nextZoom);
+  function setCanvasZoom(nextZoom) {
+    const clampedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(nextZoom.toFixed(2))));
+    zoomRef.current = clampedZoom;
+    setZoom(clampedZoom);
     updatePdfa((current) => ({
       ...current,
       documentState: {
         ...current.documentState,
-        zoom: nextZoom
+        zoom: clampedZoom
+      }
+    }));
+  }
+
+  function changeZoom(direction, multiplier = 1) {
+    const nextZoom = zoomRef.current + direction * ZOOM_STEP * multiplier;
+    const clampedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(nextZoom.toFixed(2))));
+    if (clampedZoom === zoomRef.current) return;
+    zoomRef.current = clampedZoom;
+    setZoom(clampedZoom);
+    updatePdfa((current) => ({
+      ...current,
+      documentState: {
+        ...current.documentState,
+        zoom: clampedZoom
       }
     }));
   }
