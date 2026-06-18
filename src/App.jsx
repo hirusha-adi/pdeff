@@ -40,6 +40,8 @@ export default function App() {
   const pdfaHandleRef = useRef(null);
   const sourceInfoRef = useRef(null);
   const zoomRef = useRef(1);
+  const pendingViewStateRef = useRef({});
+  const viewStateTimerRef = useRef(null);
 
   const [folderHandle, setFolderHandle] = useState(null);
   const [pdfEntries, setPdfEntries] = useState([]);
@@ -96,6 +98,7 @@ export default function App() {
 
   useEffect(() => {
     function flushPending() {
+      commitPendingViewState();
       if (dirtyRef.current && pdfaHandleRef.current && pdfaRef.current) {
         saveNow({ silentDownloadFallback: true });
       }
@@ -106,15 +109,15 @@ export default function App() {
     return () => {
       window.removeEventListener("pagehide", flushPending);
       window.removeEventListener("beforeunload", flushPending);
+      window.clearTimeout(viewStateTimerRef.current);
     };
   }, []);
 
   useEffect(() => {
-    function handleWheel(event) {
+    function blockPageWheelZoom(event) {
       if (!event.ctrlKey) return;
+      if (event.target?.closest?.(".viewer-panel")) return;
       event.preventDefault();
-      if (!pdfaRef.current) return;
-      changeZoom(event.deltaY < 0 ? 1 : -1, 0.5);
     }
 
     function handleKeyDown(event) {
@@ -135,11 +138,11 @@ export default function App() {
       }
     }
 
-    document.addEventListener("wheel", handleWheel, { passive: false, capture: true });
+    document.addEventListener("wheel", blockPageWheelZoom, { passive: false, capture: true });
     window.addEventListener("keydown", handleKeyDown, { capture: true });
 
     return () => {
-      document.removeEventListener("wheel", handleWheel, { capture: true });
+      document.removeEventListener("wheel", blockPageWheelZoom, { capture: true });
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, []);
@@ -147,7 +150,9 @@ export default function App() {
   function installDocument({ doc, nextPdfa, nextSourceInfo, nextPdfaHandle, pdfName, nextSidecarName, nextMode }) {
     autosaveReadyRef.current = false;
     dirtyRef.current = false;
+    pendingViewStateRef.current = {};
     window.clearTimeout(autosaveTimerRef.current);
+    window.clearTimeout(viewStateTimerRef.current);
 
     setPdfDoc(doc);
     setPdfa(nextPdfa);
@@ -312,6 +317,37 @@ export default function App() {
     });
   }
 
+  function commitPendingViewState() {
+    const pendingViewState = pendingViewStateRef.current;
+    if (!Object.keys(pendingViewState).length) return;
+    pendingViewStateRef.current = {};
+    window.clearTimeout(viewStateTimerRef.current);
+
+    dirtyRef.current = true;
+    setPdfa((current) => {
+      if (!current) return current;
+      const nextPdfa = {
+        ...current,
+        documentState: {
+          ...current.documentState,
+          ...pendingViewState
+        },
+        updatedAt: nowIso()
+      };
+      pdfaRef.current = nextPdfa;
+      return nextPdfa;
+    });
+  }
+
+  function scheduleViewStateChange(partialState, delay = 260) {
+    pendingViewStateRef.current = {
+      ...pendingViewStateRef.current,
+      ...partialState
+    };
+    window.clearTimeout(viewStateTimerRef.current);
+    viewStateTimerRef.current = window.setTimeout(commitPendingViewState, delay);
+  }
+
   function handleInkComplete(page, points) {
     const createdAt = nowIso();
     updatePdfa((current) => ({
@@ -443,42 +479,38 @@ export default function App() {
   }
 
   function handleViewStateChange(partialState) {
-    updatePdfa((current) => ({
-      ...current,
-      documentState: {
-        ...current.documentState,
+    scheduleViewStateChange(
+      {
         ...partialState,
         zoom: zoomRef.current
-      }
-    }));
+      },
+      260
+    );
   }
 
   function setCanvasZoom(nextZoom) {
+    const previousZoom = zoomRef.current;
     const clampedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(nextZoom.toFixed(2))));
+    if (clampedZoom === previousZoom) {
+      return { changed: false, previousZoom, nextZoom: clampedZoom };
+    }
     zoomRef.current = clampedZoom;
     setZoom(clampedZoom);
-    updatePdfa((current) => ({
-      ...current,
-      documentState: {
-        ...current.documentState,
-        zoom: clampedZoom
-      }
-    }));
+    scheduleViewStateChange({ zoom: clampedZoom }, 320);
+    return { changed: true, previousZoom, nextZoom: clampedZoom };
   }
 
   function changeZoom(direction, multiplier = 1) {
+    const previousZoom = zoomRef.current;
     const nextZoom = zoomRef.current + direction * ZOOM_STEP * multiplier;
     const clampedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(nextZoom.toFixed(2))));
-    if (clampedZoom === zoomRef.current) return;
+    if (clampedZoom === previousZoom) {
+      return { changed: false, previousZoom, nextZoom: clampedZoom };
+    }
     zoomRef.current = clampedZoom;
     setZoom(clampedZoom);
-    updatePdfa((current) => ({
-      ...current,
-      documentState: {
-        ...current.documentState,
-        zoom: clampedZoom
-      }
-    }));
+    scheduleViewStateChange({ zoom: clampedZoom }, 320);
+    return { changed: true, previousZoom, nextZoom: clampedZoom };
   }
 
   async function saveNow({ silentDownloadFallback = false } = {}) {
@@ -603,6 +635,7 @@ export default function App() {
           onCommentCreate={handleCommentCreate}
           onSelect={handleSelect}
           onViewStateChange={handleViewStateChange}
+          onZoomRequest={changeZoom}
         />
         <CommentsSidebar
           threads={comments}

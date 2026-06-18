@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import PdfPage from "./PdfPage.jsx";
 
+const PDF_RENDER_IDLE_MS = 180;
+
 export default function PdfViewer({
   pdfDoc,
   pdfa,
@@ -11,11 +13,56 @@ export default function PdfViewer({
   onHighlightComplete,
   onCommentCreate,
   onSelect,
-  onViewStateChange
+  onViewStateChange,
+  onZoomRequest
 }) {
   const scrollerRef = useRef(null);
   const panRef = useRef(null);
+  const renderZoomTimerRef = useRef(null);
   const [isPanning, setIsPanning] = useState(false);
+  const [renderZoom, setRenderZoom] = useState(zoom);
+
+  useEffect(() => {
+    setRenderZoom(zoom);
+  }, [pdfa?.source?.sha256]);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    function handleCtrlWheel(event) {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!pdfa) return;
+
+      const rect = scroller.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      const contentX = scroller.scrollLeft + localX;
+      const contentY = scroller.scrollTop + localY;
+      const result = onZoomRequest(event.deltaY < 0 ? 1 : -1, 0.5);
+      if (!result?.changed || !result.previousZoom) return;
+
+      const ratio = result.nextZoom / result.previousZoom;
+      requestAnimationFrame(() => {
+        scroller.scrollLeft = contentX * ratio - localX;
+        scroller.scrollTop = contentY * ratio - localY;
+      });
+    }
+
+    scroller.addEventListener("wheel", handleCtrlWheel, { passive: false });
+    return () => scroller.removeEventListener("wheel", handleCtrlWheel);
+  }, [pdfa, onZoomRequest]);
+
+  useEffect(() => {
+    window.clearTimeout(renderZoomTimerRef.current);
+    renderZoomTimerRef.current = window.setTimeout(() => {
+      setRenderZoom(zoom);
+    }, PDF_RENDER_IDLE_MS);
+
+    return () => window.clearTimeout(renderZoomTimerRef.current);
+  }, [zoom]);
 
   useEffect(() => {
     let frame = 0;
@@ -25,11 +72,13 @@ export default function PdfViewer({
       const scroller = scrollerRef.current;
       if (!scroller) return;
 
-      const firstPage = scroller.querySelector(".pdf-page");
+      const firstPage = scroller.querySelector(".pdf-page-frame");
       const firstCanvas = scroller.querySelector(".pdf-page canvas");
+      const visualScale = Number(firstPage?.dataset.visualScale || 1);
       const state = pdfa?.documentState ?? {};
       const hasSavedScroll = state.scrollLeft > 0 || state.scrollTop > 0;
-      const firstPageLeft = firstCanvas ? Math.max(0, firstCanvas.offsetLeft - 24) : 0;
+      const firstPageLeft =
+        firstPage && firstCanvas ? Math.max(0, firstPage.offsetLeft + firstCanvas.offsetLeft * visualScale - 24) : 0;
       const firstPageTop = firstPage ? Math.max(0, firstPage.offsetTop - 20) : 0;
 
       scroller.scrollTo({
@@ -123,7 +172,8 @@ export default function PdfViewer({
             key={`${pdfa.source.sha256}-${pageNumber}`}
             pdfDoc={pdfDoc}
             pageNumber={pageNumber}
-            zoom={zoom}
+            displayZoom={zoom}
+            renderZoom={renderZoom}
             annotations={pdfa.annotations.filter((annotation) => annotation.page === pageNumber)}
             commentThreads={pdfa.commentThreads.filter((thread) => thread.page === pageNumber)}
             tool={tool}

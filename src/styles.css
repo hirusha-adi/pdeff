@@ -259,8 +259,14 @@ button:disabled {
   min-width: 100%;
 }
 
+.pdf-page-frame {
+  position: relative;
+}
+
 .pdf-page {
   position: relative;
+  transform-origin: top left;
+  will-change: transform;
   background:
     linear-gradient(#d8e1ea 1px, transparent 1px),
     linear-gradient(90deg, #d8e1ea 1px, transparent 1px),
